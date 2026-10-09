@@ -1,0 +1,76 @@
+# ==========================================
+# Python
+# ==========================================
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python testing and tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# ==========================================
+# Vivado
+# ==========================================
+
+# Generated project directories
+*.cache/
+*.runs/
+*.sim/
+*.gen/
+*.hw/
+*.ip_user_files/
+
+# Vivado temporary files
+.Xil/
+*.jou
+*.log
+*.str
+*.backup.jou
+*.backup.log
+
+# Generated FPGA files
+*.bit
+*.bin
+*.mcs
+*.ltx
+
+# Simulation output
+xsim.dir/
+*.wdb
+*.wcfg
+*.vcd
+*.fst
+*.vpd
+
+# Checkpoints and reports
+*.dcp
+*.rpt
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# ==========================================
+# IDE / OS
+# ==========================================
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
