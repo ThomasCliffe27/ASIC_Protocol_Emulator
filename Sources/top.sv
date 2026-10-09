@@ -1,7 +1,7 @@
 module top (
     input  logic        clk,
     input  logic        uart_rx,
-    output logic        uart_tx,
+    output logic        uart_tx
 );
 
     wire [1:0] gpio_pins;
