@@ -1,0 +1,53 @@
+
+OPCODES = {
+    "DELAY": 0x00,
+    "LDI":   0x01,
+    "SUB":   0x02,
+    "JMPZ":  0x03,
+    "SET":   0x04
+}
+
+def instr_to_bin(line: str) -> str:
+    line = line.split("#")[0].strip().upper()
+    parts = line.replace(",", " ").split()
+
+    if not parts:
+        raise ValueError("Empty instruction")
+
+    mnemonic = parts[0]
+
+    if mnemonic not in OPCODES:
+        raise ValueError(f"Unknown instruction: {mnemonic}")
+
+    opcode = OPCODES[mnemonic]
+    reg = 0
+    imm = 0
+
+    if mnemonic == "DELAY":
+        if len(parts) != 2:
+            raise ValueError("Expected: DELAY imm")
+
+        imm = int(parts[1], 0)
+
+    elif mnemonic in ("LDI", "SUB"):
+        if len(parts) != 3:
+            raise ValueError(f"Expected: {mnemonic} Rx, imm")
+
+        reg = int(parts[1][1:])
+        imm = int(parts[2], 0)
+
+    elif mnemonic in ("JMPZ", "SET"):
+        if len(parts) != 2:
+            raise ValueError(f"Expected: {mnemonic} Rx")
+
+        reg = int(parts[1][1:])
+
+    if not 0 <= reg <= 7:
+        raise ValueError("Register must be R0-R7")
+
+    if not 0 <= imm <= 255:
+        raise ValueError("Immediate must be 0-255")
+
+    instruction = (opcode << 11) | (imm << 3) | reg
+
+    return f"{instruction:016b}"

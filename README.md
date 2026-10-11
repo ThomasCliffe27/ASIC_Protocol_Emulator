@@ -8,11 +8,11 @@ A z flag for calculations and logic flow
 
 ISA:
 
+DELAY imm - Wait a number of clock cycles
 LDI Rx, imm - Load imm into Rx
 SUB Rx, imm - Update z flag if result = 0
 JMPZ Rx - Set PC to Rx if z flag = 1
 SET Rx - Update the GPIO pins with the LSBs of Rx
-DELAY imm - Wait a number of clock cycles
 
 16-bit instructions
 15-11 = opcode

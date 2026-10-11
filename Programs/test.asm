@@ -1,0 +1,10 @@
+//Hello
+LDI R0, 20
+LDI R1, 3
+LDI R2, 0
+
+DELAY 10
+SET R0
+SUB R0, 1
+SUB R2, 0
+JMPZ R1
