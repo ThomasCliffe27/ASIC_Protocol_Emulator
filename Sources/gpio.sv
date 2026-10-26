@@ -17,7 +17,7 @@ module gpio #(
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            gpio <= '0;
+            gpio_out <= '0;
             io_mask <= '0;
         end
         else begin

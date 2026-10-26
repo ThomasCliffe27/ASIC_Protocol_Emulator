@@ -63,12 +63,16 @@ module cpu #(
             opcode <= '0;
             imm <= '0;
             Rx <= '0;
-            mask <= '0;
+            // Configure all GPIO bits as outputs on the first clock after reset.
+            mask <= '1;
+            set_io_mask <= 1'b1;
             set_gpio <= 1'b0;
 
             state <= FETCH;
         end 
         else begin 
+            // The GPIO module samples the reset-loaded direction mask once.
+            set_io_mask <= 1'b0;
             case(state)
 
                 FETCH: begin
@@ -142,5 +146,9 @@ module cpu #(
     end                 
 
     assign address = pc;
+
+    //Temporary until instruction is added
+    assign write_enable = 1'b0;
+    assign write_data = '0;
 
 endmodule
