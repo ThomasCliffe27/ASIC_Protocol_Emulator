@@ -25,3 +25,9 @@ LDI - 0x01
 SUB - 0x02
 JMPZ - 0x03
 SET - 0x04
+
+IDEAS:
+- Commands do both gpio control and cpu logic
+- Mode that acts almost like an oscilliscope/ signal analyser
+- Two "cores" one for input one for output
+- Pipelining but need to maintain cycle timing consistency
