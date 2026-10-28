@@ -6,6 +6,10 @@ module cpu #(
 )(
     input logic clk,
     input logic reset,
+    input logic run_enable,
+    output wire [7:0] send_data,
+    output wire send_valid,
+    input logic send_ready,
 
     //Memory
     output logic [$clog2(MEMORY_SIZE)-1:0] address,
@@ -50,7 +54,8 @@ module cpu #(
         OP_SUB = 5'h02,
         OP_JMPZ = 5'h03,
         OP_SET = 5'h04,
-        OP_DELAY_REG = 5'h05
+        OP_DELAY_REG = 5'h05,
+        OP_SEND = 5'h06
     } opcodes;
 
     always_ff @(posedge clk) begin
@@ -75,7 +80,8 @@ module cpu #(
         else begin 
             // The GPIO module samples the reset-loaded direction mask once.
             set_io_mask <= 1'b0;
-            case(state)
+            if (!run_enable) set_gpio <= 1'b0;
+            if (run_enable) case(state)
 
                 FETCH: begin
                     clk_count <= '0;
@@ -131,6 +137,10 @@ module cpu #(
                             state <= FETCH;
                         end
 
+                        OP_SEND: begin
+                            if (send_ready) state <= FETCH;
+                        end
+
                         OP_SET: begin
                             mask <= regs[Rx];
                             set_gpio <= 1'b1;
@@ -152,6 +162,8 @@ module cpu #(
         end             
     end                 
 
+    assign send_data = regs[Rx][7:0];
+    assign send_valid = run_enable && !reset && state == EXECUTE && opcode == OP_SEND;
     assign address = pc;
 
     //Temporary until instruction is added

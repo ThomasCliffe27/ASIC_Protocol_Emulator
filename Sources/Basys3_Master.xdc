@@ -51,7 +51,7 @@ set_property PACKAGE_PIN W5 [get_ports clk]
 # 	set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
 # set_property PACKAGE_PIN E19 [get_ports {led[1]}]					
 # 	set_property IOSTANDARD LVCMOS33 [get_ports {led[1]}]
-## GPIO bits 0..7 drive onboard LEDs LD0..LD7. Bit 0 also feeds UART TX.
+## GPIO bits 0..7 drive onboard LEDs LD0..LD7 independently of UART TX.
 set_property PACKAGE_PIN U16 [get_ports {gpio_pins[0]}]
 set_property PACKAGE_PIN E19 [get_ports {gpio_pins[1]}]
 set_property PACKAGE_PIN U19 [get_ports {gpio_pins[2]}]

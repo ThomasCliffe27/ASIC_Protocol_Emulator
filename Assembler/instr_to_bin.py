@@ -6,7 +6,8 @@ OPCODES = {
     "LDI":   0x01,
     "SUB":   0x02,
     "JMPZ":  0x03,
-    "SET":   0x04
+    "SET":   0x04,
+    "SEND":  0x06
 }
 
 # DELAY Rx uses a separate encoding; DELAY imm retains its original encoding.
@@ -51,7 +52,7 @@ def instr_to_bin(line: str) -> str:
         reg = _register(parts[1])
         imm = int(parts[2], 0)
 
-    elif mnemonic in ("JMPZ", "SET"):
+    elif mnemonic in ("JMPZ", "SET", "SEND"):
         if len(parts) != 2:
             raise ValueError(f"Expected: {mnemonic} Rx")
 

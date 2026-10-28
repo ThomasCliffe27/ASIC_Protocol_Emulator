@@ -3,8 +3,10 @@ module top #(
     parameter int NUM_REGISTERS = 8,
     parameter int MEMORY_SIZE   = 1024,
     parameter int GPIO_WIDTH    = 8,
-    parameter string PROGRAM_FILE = "uart_tx.hex",
-    parameter int PROGRAM_WORDS = 73
+    parameter string PROGRAM_FILE = "",
+    parameter int CLOCK_HZ = 100_000_000,
+    parameter int BAUD = 115200,
+    parameter int PROGRAM_WORDS = 1024
 )(
     input  logic clk,
     input  logic reset,
@@ -13,6 +15,8 @@ module top #(
     // Basys 3: GPIO bits 0..7 drive LEDs LD0..LD7 via the XDC.
     inout  wire [GPIO_WIDTH-1:0] gpio_pins
 );
+
+    initial if (WORD_WIDTH != 16) $fatal(1, "Host loader requires 16-bit instruction memory");
 
     wire [$clog2(MEMORY_SIZE)-1:0] mem_address;
     wire mem_write_enable;
@@ -33,19 +37,16 @@ module top #(
         reset_pipe <= {reset_pipe[0], reset};
     end
 
-    // Latch the same bit that GPIO captures on SET. A registered UART output
-    // stays idle during startup and avoids glitches when GPIO leaves tri-state.
-    logic uart_tx_value = 1'b1;
-    always_ff @(posedge clk) begin
-        if (core_reset)
-            uart_tx_value <= 1'b1;
-        else if (set_gpio)
-            uart_tx_value <= gpio_mask[0];
-    end
-
-    // Route GPIO bit 0 to the board's UART TX pin.
-    assign uart_tx = uart_tx_value;
-    // uart_rx is reserved for a future UART receiver.
+    wire running, host_reset, load_write, send_valid, send_ready;
+    wire [$clog2(MEMORY_SIZE)-1:0] load_address;
+    wire [15:0] load_data;
+    wire [7:0] send_data;
+    wire rx_error, load_error;
+    host_uart #(.CLOCK_HZ(CLOCK_HZ), .BAUD(BAUD), .MEMORY_SIZE(MEMORY_SIZE)) host(
+        .clk(clk), .reset(core_reset), .uart_rx(uart_rx), .uart_tx(uart_tx),
+        .running(running), .cpu_reset(host_reset), .load_address(load_address),
+        .load_write(load_write), .load_data(load_data), .send_data(send_data),
+        .send_valid(send_valid), .send_ready(send_ready), .rx_error(rx_error), .load_error(load_error));
 
     gpio #(
         .GPIO_WIDTH(GPIO_WIDTH)
@@ -66,7 +67,8 @@ module top #(
         .GPIO_WIDTH(GPIO_WIDTH)
     ) cpu_inst (
         .clk(clk),
-        .reset(core_reset),
+        .reset(core_reset | host_reset),
+        .run_enable(running), .send_data(send_data), .send_valid(send_valid), .send_ready(send_ready),
         .address(mem_address),
         .write_enable(mem_write_enable),
         .write_data(mem_write_data),
@@ -84,9 +86,9 @@ module top #(
         .INIT_WORDS(PROGRAM_WORDS)
     ) mem_inst (
         .clk(clk),
-        .address(mem_address),
-        .write_enable(mem_write_enable),
-        .write_data(mem_write_data),
+        .address(load_write ? load_address : mem_address),
+        .write_enable(load_write | mem_write_enable),
+        .write_data(load_write ? load_data : mem_write_data),
         .read_data(mem_read_data)
     );
 endmodule

@@ -22,7 +22,7 @@ module cpu_tb;
     logic [GPIO_WIDTH-1:0] gpio_input = '0;
 
     cpu dut (
-        .clk(clk), .reset(reset), .address(address),
+        .clk(clk), .reset(reset), .run_enable(1'b1), .send_ready(1'b1), .address(address),
         .write_enable(write_enable), .write_data(write_data), .read_data(read_data),
         .set_io_mask(set_io_mask), .set_gpio(set_gpio), .mask(mask), .gpio_input(gpio_input)
     );
