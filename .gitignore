@@ -48,6 +48,7 @@ build/
 *.ltx
 
 # Simulation output
+/Testing/.test_all/
 xsim.dir/
 *.wdb
 *.wcfg

@@ -44,11 +44,11 @@ module cpu #(
     cpu_state state;
 
     typedef enum logic [4:0] {
-        OP_DELAY = 6'h00,
-        OP_LDI = 6'h01,
-        OP_SUB = 6'h02,
-        OP_JMPZ = 6'h03,
-        OP_SET = 6'h04
+        OP_DELAY = 5'h00,
+        OP_LDI = 5'h01,
+        OP_SUB = 5'h02,
+        OP_JMPZ = 5'h03,
+        OP_SET = 5'h04
     } opcodes;
 
     always_ff @(posedge clk) begin

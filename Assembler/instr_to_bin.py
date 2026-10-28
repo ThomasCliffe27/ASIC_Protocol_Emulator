@@ -1,3 +1,5 @@
+import re
+
 
 OPCODES = {
     "DELAY": 0x00,
@@ -7,8 +9,14 @@ OPCODES = {
     "SET":   0x04
 }
 
+def _register(token: str) -> int:
+    if re.fullmatch(r"R[0-7]", token) is None:
+        raise ValueError("Register must be R0-R7")
+    return int(token[1:])
+
+
 def instr_to_bin(line: str) -> str:
-    line = line.split("#")[0].strip().upper()
+    line = line.split("//", 1)[0].split("#", 1)[0].strip().upper()
     parts = line.replace(",", " ").split()
 
     if not parts:
@@ -33,14 +41,14 @@ def instr_to_bin(line: str) -> str:
         if len(parts) != 3:
             raise ValueError(f"Expected: {mnemonic} Rx, imm")
 
-        reg = int(parts[1][1:])
+        reg = _register(parts[1])
         imm = int(parts[2], 0)
 
     elif mnemonic in ("JMPZ", "SET"):
         if len(parts) != 2:
             raise ValueError(f"Expected: {mnemonic} Rx")
 
-        reg = int(parts[1][1:])
+        reg = _register(parts[1])
 
     if not 0 <= reg <= 7:
         raise ValueError("Register must be R0-R7")

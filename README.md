@@ -1,6 +1,32 @@
 This is my submission for the [Jane Street Protocol Emulator ASIC design competition](https://blog.janestreet.com/protocol-emulator-asic-competition/)
 This is the first very simple version
 
+## Running all tests
+
+From the repository root, run:
+
+```powershell
+python Testing/test_all.py
+```
+
+The runner finds every `test_*.py` suite and `*_tb.sv` testbench under `Testing`,
+runs the assembler tests, regenerates assembly fixtures, and compiles and runs
+each HDL testbench with Vivado. It prints a pass/fail summary and exits with
+code 1 if any suite fails, tools are missing, or a simulation does not finish.
+Build files and full logs are kept in `Testing/.test_all/`.
+
+Vivado is detected from PATH, `XILINX_VIVADO`, or common installation folders.
+To select an installation explicitly:
+
+```powershell
+python Testing/test_all.py --vivado-bin "C:/AMDDesignTools/2025.2/Vivado/bin"
+```
+
+The runner works from other working directories when invoked by its full path.
+Use `--timeout SECONDS` to change the default 180-second limit per command.
+
+## Design
+
 16 bit CPU
 8 16 bit GPRs
 A z flag for calculations and logic flow
