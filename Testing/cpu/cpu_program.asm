@@ -10,3 +10,5 @@ SET R1          // Must be skipped by the taken branch.
 DELAY 3
 LDI R3, 165
 SET R3
+DELAY R3       // Use the full register value without changing it.
+SET R3

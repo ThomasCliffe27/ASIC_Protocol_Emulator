@@ -3,6 +3,9 @@
 ## - uncomment the lines corresponding to used pins
 ## - rename the used ports (in each line, after get_ports) according to the top level signal names in the project
 
+set_property CFGBVS VCCO [current_design]
+set_property CONFIG_VOLTAGE 3.3 [current_design]
+
 ## Clock signal
 set_property PACKAGE_PIN W5 [get_ports clk]							
 	set_property IOSTANDARD LVCMOS33 [get_ports clk]
@@ -48,9 +51,21 @@ set_property PACKAGE_PIN W5 [get_ports clk]
 # 	set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
 # set_property PACKAGE_PIN E19 [get_ports {led[1]}]					
 # 	set_property IOSTANDARD LVCMOS33 [get_ports {led[1]}]
-## Third GPIO bit drives onboard LED LD2.
+## GPIO bits 0..7 drive onboard LEDs LD0..LD7. Bit 0 also feeds UART TX.
+set_property PACKAGE_PIN U16 [get_ports {gpio_pins[0]}]
+set_property PACKAGE_PIN E19 [get_ports {gpio_pins[1]}]
 set_property PACKAGE_PIN U19 [get_ports {gpio_pins[2]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {gpio_pins[2]}]
+set_property PACKAGE_PIN V19 [get_ports {gpio_pins[3]}]
+set_property PACKAGE_PIN W18 [get_ports {gpio_pins[4]}]
+set_property PACKAGE_PIN U15 [get_ports {gpio_pins[5]}]
+set_property PACKAGE_PIN U14 [get_ports {gpio_pins[6]}]
+set_property PACKAGE_PIN V14 [get_ports {gpio_pins[7]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {gpio_pins[*]}]
+
+## Centre button: both edges pass through the two-flop synchronizer in top.sv.
+set_property PACKAGE_PIN U18 [get_ports reset]
+set_property IOSTANDARD LVCMOS33 [get_ports reset]
+set_false_path -from [get_ports reset]
 # set_property PACKAGE_PIN V19 [get_ports {led[3]}]					
 # 	set_property IOSTANDARD LVCMOS33 [get_ports {led[3]}]
 # set_property PACKAGE_PIN W18 [get_ports {led[4]}]					

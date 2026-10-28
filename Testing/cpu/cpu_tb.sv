@@ -9,7 +9,7 @@ module cpu_tb;
     localparam int ADDRESS_WIDTH = $clog2(MEMORY_SIZE);
     localparam int GPIO_WIDTH = 8;
     localparam logic [4:0] OP_DELAY = 0, OP_LDI = 1, OP_SUB = 2,
-                           OP_JMPZ = 3, OP_SET = 4;
+                           OP_JMPZ = 3, OP_SET = 4, OP_DELAY_REG = 5;
 
     logic clk = 1'b0;
     logic reset = 1'b1;
@@ -110,6 +110,9 @@ module cpu_tb;
                 instruction_cycles = 4;
                 if (model_instruction[15:11] == OP_DELAY && model_instruction[10:3] > 0)
                     instruction_cycles = 3 + int'(model_instruction[10:3]);
+                if (model_instruction[15:11] == OP_DELAY_REG &&
+                    expected_regs[model_instruction[2:0]] > 0)
+                    instruction_cycles = 3 + int'(expected_regs[model_instruction[2:0]]);
             end
             // Fetch advances the address before the instruction completes.
             if (instruction_age == 2) expected_pc = expected_pc + 1'b1;
@@ -266,14 +269,135 @@ module cpu_tb;
             emit(OP_SET, 0, 0);
             emit(OP_DELAY, 8'(value), 0);
         end
-        for (int opcode = 5; opcode < 32; opcode++) begin
+        for (int opcode = 6; opcode < 32; opcode++) begin
             emit(5'(opcode), 255, 7);
             emit(OP_SET, 0, 0);
         end
         release_reset();
         run_instructions(program_length);
-        if (gpio_write_count != 283 || mask !== 8'hA5)
+        if (gpio_write_count != 282 || mask !== 8'hA5)
             $fatal(1, "Delay/unsupported opcode output count failed");
+    endtask
+
+    // Build a known full-width register value using only the public ISA.
+    task automatic emit_load_word(input int unsigned value, input logic [2:0] reg_index);
+        int unsigned remaining;
+        if (value < 256) begin
+            emit(OP_LDI, 8'(value), reg_index);
+        end else begin
+            emit(OP_LDI, 0, reg_index);
+            remaining = 65536 - value;
+            while (remaining > 255) begin
+                emit(OP_SUB, 255, reg_index);
+                remaining -= 255;
+            end
+            if (remaining != 0) emit(OP_SUB, 8'(remaining), reg_index);
+        end
+    endtask
+
+    task automatic test_register_delay_values();
+        int unsigned started;
+        start_test("register DELAY: all byte counts in all registers, exact timing and retained values");
+        for (int r = 0; r < NUM_REGISTERS; r++) begin
+            prepare_program();
+            for (int value = 0; value < 256; value++) begin
+                emit(OP_LDI, 8'(value), 3'(r));
+                emit(OP_DELAY_REG, 0, 3'(r));
+                emit(OP_SET, 0, 3'(r));
+            end
+            release_reset();
+            started = cycle_count;
+            run_instructions(program_length);
+            // Sum(max(1,N)+3+4+4) for N=0..255, independent of the model.
+            if (cycle_count - started != 35457 || gpio_write_count != 256 || mask !== 8'hFF)
+                $fatal(1, "Register delay byte sweep failed for R%0d", r);
+        end
+    endtask
+
+    task automatic test_register_delay_full_width();
+        int unsigned counts [0:8] = '{256, 257, 511, 512, 1023, 32768, 65280, 65534, 65535};
+        int unsigned load_count, started;
+        start_test("full 16-bit register delays, upper bits, maximum count and mixed delay forms");
+        for (int r = 0; r < NUM_REGISTERS; r++) begin
+            foreach (counts[index]) begin
+                prepare_program();
+                emit_load_word(counts[index], 3'(r));
+                load_count = program_length;
+                emit(OP_DELAY_REG, 0, 3'(r));
+                emit(OP_SET, 0, 3'(r));
+                emit(OP_DELAY, 7, 0);
+                // Reserved immediate bits do not affect the register form.
+                emit(OP_DELAY_REG, 255, 3'(r));
+                emit(OP_SET, 0, 3'(r));
+                release_reset();
+                run_instructions(load_count);
+                started = cycle_count;
+                run_instructions(1);
+                if (cycle_count - started != counts[index] + 3)
+                    $fatal(1, "Wrong first DELAY R%0d duration for count %0d", r, counts[index]);
+                run_instructions(2); // SET and immediate DELAY 7.
+                started = cycle_count;
+                run_instructions(1);
+                if (cycle_count - started != counts[index] + 3)
+                    $fatal(1, "Register changed or counter retained state between delays");
+                run_instructions(1);
+                if (mask !== 8'(counts[index]) || gpio_write_count != 2)
+                    $fatal(1, "Register DELAY modified the source register");
+            end
+        end
+    endtask
+
+    task automatic test_register_delay_flags();
+        int scratch, branch_register;
+        start_test("register DELAY preserves both zero-flag states and source registers");
+        for (int r = 0; r < NUM_REGISTERS; r++) begin
+            scratch = (r + 1) % NUM_REGISTERS;
+            branch_register = (r + 2) % NUM_REGISTERS;
+            for (int flag_value = 0; flag_value < 2; flag_value++) begin
+                prepare_program();
+                emit(OP_LDI, 37, 3'(r));             // 0
+                emit(OP_LDI, 9, 3'(branch_register)); // 1
+                emit(OP_LDI, 1, 3'(scratch));        // 2
+                emit(OP_SUB, 8'(flag_value), 3'(scratch)); // 3: choose z=0/1.
+                emit(OP_DELAY_REG, 0, 3'(r));        // 4: must preserve z.
+                emit(OP_SET, 0, 3'(r));              // 5
+                emit(OP_JMPZ, 0, 3'(branch_register)); // 6
+                emit(OP_SET, 0, 3'(scratch));        // 7: skipped when z=1.
+                emit(OP_DELAY, 0, 0);               // 8: skipped when z=1.
+                emit(OP_SET, 0, 3'(r));              // 9
+                release_reset();
+                run_instructions(flag_value ? 8 : 10);
+                if (address !== 10'd10 || mask !== 8'd37 ||
+                    gpio_write_count != (flag_value ? 2 : 3))
+                    $fatal(1, "Register delay damaged flags/registers for R%0d", r);
+            end
+        end
+    endtask
+
+    task automatic test_register_delay_reset();
+        int unsigned started;
+        start_test("reset cancels a 65535-clock register delay and restarts its full duration");
+        prepare_program();
+        emit_load_word(65535, 3); // LDI R3,0; SUB R3,1.
+        emit(OP_DELAY_REG, 0, 3);
+        emit(OP_SET, 0, 3);
+        release_reset();
+        run_instructions(2);
+        repeat (1000) @(negedge clk);
+        if (gpio_write_count != 0) $fatal(1, "Long delay finished prematurely");
+        reset = 1'b1;
+        #1;
+        check_ports("reset during register delay before rising edge");
+        repeat (3) @(posedge clk);
+        #2;
+        release_reset();
+        started = cycle_count;
+        run_instructions(3);
+        if (cycle_count - started != 65546) // Two 4-clock loads plus 65535+3.
+            $fatal(1, "Reset did not restart the full register delay");
+        run_instructions(1);
+        if (gpio_write_count != 1 || mask !== 8'hFF)
+            $fatal(1, "Program did not resume correctly after register delay reset");
     endtask
 
     task automatic test_reset_during_execution();
@@ -324,7 +448,7 @@ module cpu_tb;
             random_state = 32'h1BADF00D + 32'(seed);
             for (int location = 0; location < MEMORY_SIZE; location++) begin
                 random_state = next_random(random_state);
-                // Opcodes 0..7 include all implemented instructions and no-ops.
+                // Opcodes 0..7 include both DELAY forms and unsupported no-ops.
                 program_memory[location] = encode(5'(random_state[18:16]),
                                                   random_state[15:8], random_state[2:0]);
             end
@@ -359,18 +483,19 @@ module cpu_tb;
         if (handle == 0)
             $fatal(1, "Cannot open cpu_program.hex; assemble cpu_program.asm and supply +PROGRAM_HEX=<path>");
         $fclose(handle);
-        $readmemh(filename, program_memory, 0, 10);
+        $readmemh(filename, program_memory, 0, 12);
         // Known words verify the file independently of the architectural model.
         if (program_memory[0] !== 16'h0950 || program_memory[1] !== 16'h2000 ||
             program_memory[2] !== 16'h1150 || program_memory[3] !== 16'h2000 ||
             program_memory[4] !== 16'h0841 || program_memory[5] !== 16'h1002 ||
             program_memory[6] !== 16'h1801 || program_memory[7] !== 16'h2001 ||
             program_memory[8] !== 16'h0018 || program_memory[9] !== 16'h0D2B ||
-            program_memory[10] !== 16'h2003)
+            program_memory[10] !== 16'h2003 || program_memory[11] !== 16'h2803 ||
+            program_memory[12] !== 16'h2003)
             $fatal(1, "Assembled fixture does not contain the expected instruction words");
         release_reset();
-        run_instructions(10);
-        if (gpio_write_count != 3 || mask !== 8'hA5 || address !== 10'd11)
+        run_instructions(12);
+        if (gpio_write_count != 4 || mask !== 8'hA5 || address !== 10'd13)
             $fatal(1, "Assembled program output sequence or branch failed");
     endtask
 
@@ -380,6 +505,10 @@ module cpu_tb;
         test_subtraction();
         test_branches();
         test_delays_and_invalid_opcodes();
+        test_register_delay_values();
+        test_register_delay_full_width();
+        test_register_delay_flags();
+        test_register_delay_reset();
         test_reset_during_execution();
         test_random_programs();
         test_assembled_program();

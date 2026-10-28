@@ -36,13 +36,23 @@ class AssemblerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "program.asm"
             output = source.with_suffix(".hex")
-            source.write_text("// comment\n# comment\n\nldi r0, 0x2a // load\nSET R0 # emit\nSUB R0, 42\n", encoding="utf-8")
+            source.write_text("// comment\n# comment\n\nldi r0, 0x2a // load\nSET R0 # emit\nSUB R0, 42\ndelay r3 // register count\n", encoding="utf-8")
             self.assemble(source, output)
-            self.assertEqual(output.read_bytes(), b"0950\n2000\n1150\n")
+            self.assertEqual(output.read_bytes(), b"0950\n2000\n1150\n2803\n")
+
+    def test_register_delay_encodings(self):
+        for reg in range(8):
+            with self.subTest(reg=reg):
+                self.assertEqual(self.instr_to_bin(f"DELAY R{reg}"), f"{0x2800 | reg:016b}")
+                self.assertEqual(self.instr_to_bin(f"delay r{reg} # comment"), f"{0x2800 | reg:016b}")
+        self.assertEqual(int(self.instr_to_bin("DELAY 5"), 2), 0x0028)
+        self.assertEqual(int(self.instr_to_bin("DELAY R5"), 2), 0x2805)
 
     def test_invalid_operands(self):
         for instruction in ("LDI X0, 1", "LDI R8, 1", "LDI R-1, 1", "LDI R0, 256",
-                            "SUB R0, -1", "DELAY 256", "SET R0, 1", "JMPZ", "BAD R0"):
+                            "SUB R0, -1", "DELAY 256", "DELAY -1", "DELAY R8",
+                            "DELAY R-1", "DELAY R", "DELAY R1, 2", "DELAY", "DELAY X0",
+                            "SET R0, 1", "JMPZ", "BAD R0"):
             with self.subTest(instruction=instruction), self.assertRaises(ValueError):
                 self.instr_to_bin(instruction)
 

@@ -9,6 +9,9 @@ OPCODES = {
     "SET":   0x04
 }
 
+# DELAY Rx uses a separate encoding; DELAY imm retains its original encoding.
+REGISTER_DELAY_OPCODE = 0x05
+
 def _register(token: str) -> int:
     if re.fullmatch(r"R[0-7]", token) is None:
         raise ValueError("Register must be R0-R7")
@@ -33,9 +36,13 @@ def instr_to_bin(line: str) -> str:
 
     if mnemonic == "DELAY":
         if len(parts) != 2:
-            raise ValueError("Expected: DELAY imm")
+            raise ValueError("Expected: DELAY imm or DELAY Rx")
 
-        imm = int(parts[1], 0)
+        if parts[1].startswith("R"):
+            opcode = REGISTER_DELAY_OPCODE
+            reg = _register(parts[1])
+        else:
+            imm = int(parts[1], 0)
 
     elif mnemonic in ("LDI", "SUB"):
         if len(parts) != 3:

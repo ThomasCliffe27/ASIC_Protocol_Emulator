@@ -1,6 +1,8 @@
 module memory #(
     parameter int WORD_WIDTH = 16,
-    parameter int MEMORY_SIZE = 1024
+    parameter int MEMORY_SIZE = 1024,
+    parameter string INIT_FILE = "",
+    parameter int INIT_WORDS = MEMORY_SIZE
 )(
     input logic clk,
 
@@ -12,6 +14,20 @@ module memory #(
 );
 
     logic [WORD_WIDTH-1:0] mem [0:MEMORY_SIZE-1];
+
+    // Empty INIT_FILE preserves uninitialized RAM behaviour for unit tests.
+    // Vivado embeds enabled initialization in the FPGA configuration bitstream.
+    generate
+        if (INIT_FILE != "") begin : initialize_memory
+            initial begin
+                if (INIT_WORDS < 1 || INIT_WORDS > MEMORY_SIZE)
+                    $fatal(1, "INIT_WORDS must be between 1 and MEMORY_SIZE");
+                for (int i = 0; i < MEMORY_SIZE; i++)
+                    mem[i] = '0;
+                $readmemh(INIT_FILE, mem, 0, INIT_WORDS - 1);
+            end
+        end
+    endgenerate
 
     always_ff @(posedge clk) begin
 

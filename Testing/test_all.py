@@ -102,7 +102,12 @@ def prepare_fixtures(test: Path, directory: Path, timeout: float) -> None:
     # Keep fixture regeneration inside the build directory, leaving checked-in
     # program images untouched. Both relative-to-ROM and relative-to-repo paths
     # are available to $readmemh in each isolated simulation working directory.
-    for fixture in sorted(test.parent.iterdir()):
+    fixtures = list(test.parent.iterdir())
+    manifest = test.parent / "fixtures.txt"
+    if manifest.is_file():
+        fixtures.extend(ROOT / line.strip() for line in manifest.read_text().splitlines()
+                        if line.strip() and not line.lstrip().startswith("#"))
+    for fixture in sorted(fixtures):
         if not fixture.is_file() or fixture.suffix.lower() not in (".hex", ".mem", ".bin", ".dat", ".asm"):
             continue
         mirrored = directory / fixture.relative_to(ROOT)

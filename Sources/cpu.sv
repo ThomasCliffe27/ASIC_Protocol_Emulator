@@ -25,7 +25,8 @@ module cpu #(
     logic [$clog2(MEMORY_SIZE)-1:0] pc;
     logic z_flag;
 
-    logic [15:0] clk_count;
+    // Remaining execution clocks for either form of DELAY.
+    logic [WORD_WIDTH-1:0] clk_count;
 
     logic [WORD_WIDTH-1:0] instr;
     logic [4:0] opcode; 
@@ -48,7 +49,8 @@ module cpu #(
         OP_LDI = 5'h01,
         OP_SUB = 5'h02,
         OP_JMPZ = 5'h03,
-        OP_SET = 5'h04
+        OP_SET = 5'h04,
+        OP_DELAY_REG = 5'h05
     } opcodes;
 
     always_ff @(posedge clk) begin
@@ -91,18 +93,23 @@ module cpu #(
                     opcode <= instr[15:11];
                     imm <= instr[10:3];
                     Rx <= instr[2:0];
+                    if (instr[15:11] == OP_DELAY)
+                        clk_count <= WORD_WIDTH'(instr[10:3]);
+                    else if (instr[15:11] == OP_DELAY_REG)
+                        clk_count <= regs[instr[2:0]];
                     state <= EXECUTE;
                 end
 
                 EXECUTE: begin
                     case(opcode)
-                        OP_DELAY: begin
-                            if (imm == 0 || clk_count == imm - 1'b1) begin
+                        OP_DELAY, OP_DELAY_REG: begin
+                            // Zero and one both finish in one execution clock.
+                            if (clk_count <= 1) begin
                                 clk_count <= '0;
                                 state <= FETCH;
                             end
                             else begin
-                                clk_count <= clk_count + 1'b1;
+                                clk_count <= clk_count - 1'b1;
                             end
                         end
 
